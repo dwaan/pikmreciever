@@ -13,6 +13,7 @@ Thank you to all the people who dropped by with kind words, suggestions and impr
 
 - [Quickstart (Ish)](#quickstart-ish)
   - [Mouse Support](#mouse-support)
+  - [Autostart](#autostart)
 - [Building & Contributing](#building--contributing)
   - [Building](#building)
   - [Custom Mouse/Keyboard Devices](#custom-mousekeyboard-devices)
@@ -25,13 +26,13 @@ Reboot!
 
 `sudo modprobe libcomposite`
 
-Grab the latest pi400kb for your system from releases: https://github.com/Gadgetoid/pi400kb/releases
+Grab the latest pikmreciever for your system from releases: https://github.com/dwaan/pikmreciever/releases
 
-`chmod +x pi400kb`
+`chmod +x pikmreciever`
 
-`sudo ./pi400kb`
+`sudo ./pikmreciever`
 
-:sparkles: YOUR PI 400 IS NOW A FREAKING KEYBOARD & MOUSE FOR YOUR PC WHAAAAT!? :sparkles: 
+:sparkles: YOUR PI 400 IS NOW A FREAKING KEYBOARD & MOUSE FOR YOUR PC WHAAAAT!? :sparkles:
 
 Your keyboard input will be detached from your Pi while it's forwarded to your host computer.
 
@@ -46,23 +47,23 @@ Pi 400 KB supports the official Raspberry Pi Mouse VID:PID = 093a:2510 by defaul
 ### Autostart
 
 ```
-sudo cp pi400kb /usr/sbin/pi400kb
-sudo systemctl edit --force --full pi400kb.service
+sudo cp pikmreciever /usr/sbin/pikmreciever
+sudo systemctl edit --force --full pikmreciever.service
 ```
 
-Add the contents of the `pi400kb.service` file.
+Add the contents of the `pikmreciever.service` file.
 
 Start the service and check its status:
 
 ```
-sudo systemctl start pi400kb.service
-sudo systemctl status pi400kb.service
+sudo systemctl start pikmreciever.service
+sudo systemctl status pikmreciever.service
 ```
 
 Enable start on boot if it's okay:
 
 ```
-sudo systemctl enable pi400kb.service
+sudo systemctl enable pikmreciever.service
 ```
 
 ## Building & Contributing
@@ -71,8 +72,8 @@ sudo systemctl enable pi400kb.service
 
 ```
 sudo apt install libconfig-dev
-git clone https://github.com/Gadgetoid/pi400kb
-cd pi400kb
+git clone https://github.com/Gadgetoid/pikmreciever
+cd pikmreciever
 git submodule update --init
 mkdir build
 cd build

@@ -1,0 +1,12 @@
+[Unit]
+Description=Pi Keyboard & Mouse bluetooth reciever
+
+[Service]
+ExecStart=/usr/sbin/pikmreciever
+User=root
+Group=root
+Type=simple
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,7 @@
-#include "gadget-hid.h"
+#include "create-gadget-hid.h"
 #include <errno.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <linux/usb/ch9.h>
 #include <usbg/usbg.h>
 #include <usbg/function/hid.h>
@@ -75,7 +76,7 @@ static char report_desc[] = {
     0xC0,              // End Collection
 };
 
-int initUSB() {
+int initUSB(uint16_t device_vid, uint16_t device_pid) {
     int usbg_ret = -EINVAL;
 
     struct usbg_gadget_attrs g_attrs = {
@@ -84,15 +85,15 @@ int initUSB() {
         .bDeviceSubClass = 0x00,
         .bDeviceProtocol = 0x00,
         .bMaxPacketSize0 = 64, /* Max allowed ep0 packet size */
-        .idVendor = KEYBOARD_VID,
-        .idProduct = KEYBOARD_PID,
+        .idVendor = device_vid,
+        .idProduct = device_pid,
         .bcdDevice = 0x0001, /* Verson of device */
     };
 
     struct usbg_gadget_strs g_strs = {
         .serial = "0123456789",      /* Serial number */
-        .manufacturer = "Gadgetoid", /* Manufacturer */
-        .product = "Pi400KB"         /* Product string */
+        .manufacturer = "Dwan", /* Manufacturer */
+        .product = "PiKMReciever"         /* Product string */
     };
 
     struct usbg_config_strs c_strs = {
@@ -162,6 +163,7 @@ out2:
     s = NULL;
 
 out1:
+    printf("Device %04x:%04x created", device_vid, device_pid);
     return usbg_ret;
 }
 
