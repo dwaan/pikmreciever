@@ -6,10 +6,4 @@ FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
 
 # [Optional] Uncomment this section to install additional OS packages.
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends libconfig-dev build-essential cmake
-
-RUN cd /workspace/pikmreciever
-RUN git submodule update --init
-RUN mkdir build
-RUN cd build
-RUN cmake ..
+    && apt-get -y install --no-install-recommends libconfig-dev build-essential cmake git
