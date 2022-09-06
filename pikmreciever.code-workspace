@@ -12,7 +12,12 @@
 			"remove-gadget-hid.h": "c",
 			"errno.h": "c",
 			"hid.h": "c",
-			"ch9.h": "c"
+			"ch9.h": "c",
+			"pikmreciever.h": "c",
+			"pthread.h": "c",
+			"create-gadget-hid.h": "c",
+			"hidapi.h": "c",
+			"wait.h": "c"
 		}
 	}
 }

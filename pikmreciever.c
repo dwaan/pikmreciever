@@ -18,7 +18,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <libhidapi/libhidapi.h>
+// Library: apt isntall libhidapi
+#include <hidapi/hidapi.h>
 
 #define EVIOC_GRAB 1
 #define EVIOC_UNGRAB 0
@@ -90,12 +91,16 @@ bool trigger_hook()
 int find_hidraw_device()
 {
     int fd;
-    int ret;
+    int res;
     int desc_size = 0;
     char path[20];
     char buf[256];
     struct hidraw_devinfo hidinfo;
     struct hidraw_report_descriptor rpt_desc;
+
+#define MAX_STR 255
+    wchar_t wstr[MAX_STR];
+    hid_device *handle;
 
     for (int x = 0; x < 16; x++)
     {
@@ -111,8 +116,8 @@ int find_hidraw_device()
         memset(buf, 0x0, sizeof(buf));
 
         /* Get Raw Info */
-        ret = ioctl(fd, HIDIOCGRAWINFO, &hidinfo);
-        if (ret < 0)
+        res = ioctl(fd, HIDIOCGRAWINFO, &hidinfo);
+        if (res < 0)
         {
             perror("HIDIOCGRAWINFO");
         }
@@ -128,33 +133,62 @@ int find_hidraw_device()
             device_pid = hidinfo.product;
             sprintf(device_dev, "%s", path);
 
-            /* Get Physical Location */
-            ret = ioctl(fd, HIDIOCGRAWPHYS(256), buf);
-            if (ret >= 0)
-                printf("\t\tRaw Phys: %s\n", buf);
-
-            /* Get Raw Name */
-            ret = ioctl(fd, HIDIOCGRAWNAME(256), buf);
-            if (ret >= 0)
-                printf("\t\tRaw Name: %s\n", buf);
-
-            /* Get Report Descriptor Size */
-            ret = ioctl(fd, HIDIOCGRDESCSIZE, &desc_size);
-            if (ret >= 0)
+            handle = hid_open(device_vid, device_pid, NULL);
+            if (!handle)
             {
-                printf("\t\tReport Descriptor Size: %d\n", desc_size);
-
-                /* Get Report Descriptor */
-                ret = ioctl(fd, HIDIOCGRDESC, &rpt_desc);
-                rpt_desc.size = desc_size;
-                if (ret >= 0)
-                {
-                    printf("\t\tReport Descriptor:\n");
-                    for (int i = 0; i < rpt_desc.size; i++)
-                        printf("0x%02hx ", rpt_desc.value[i]);
-                    puts("\n");
-                }
+                printf("unable to open device\n");
+                continue;
             }
+
+            // Read the Manufacturer String
+            wstr[0] = 0x0000;
+            res = hid_get_manufacturer_string(handle, wstr, MAX_STR);
+            if (res < 0)
+                printf("Unable to read manufacturer string\n");
+            printf("Manufacturer String: %ls\n", wstr);
+
+            // Read the Product String
+            wstr[0] = 0x0000;
+            res = hid_get_product_string(handle, wstr, MAX_STR);
+            if (res < 0)
+                printf("Unable to read product string\n");
+            printf("Product String: %ls\n", wstr);
+
+            // Read the Serial Number String
+            wstr[0] = 0x0000;
+            res = hid_get_serial_number_string(handle, wstr, MAX_STR);
+            if (res < 0)
+                printf("Unable to read serial number string\n");
+            printf("Serial Number String: (%d) %ls", wstr[0], wstr);
+            printf("\n");
+
+            // /* Get Physical Location */
+            // res = ioctl(fd, HIDIOCGRAWPHYS(256), buf);
+            // if (res >= 0)
+            //     printf("\t\tRaw Phys: %s\n", buf);
+
+            // /* Get Raw Name */
+            // res = ioctl(fd, HIDIOCGRAWNAME(256), buf);
+            // if (res >= 0)
+            //     printf("\t\tRaw Name: %s\n", buf);
+
+            // /* Get Report Descriptor Size */
+            // res = ioctl(fd, HIDIOCGRDESCSIZE, &desc_size);
+            // if (res >= 0)
+            // {
+            //     printf("\t\tReport Descriptor Size: %d\n", desc_size);
+
+            //     /* Get Report Descriptor */
+            //     res = ioctl(fd, HIDIOCGRDESC, &rpt_desc);
+            //     rpt_desc.size = desc_size;
+            //     if (res >= 0)
+            //     {
+            //         printf("\t\tReport Descriptor:\n");
+            //         for (int i = 0; i < rpt_desc.size; i++)
+            //             printf("0x%02hx ", rpt_desc.value[i]);
+            //         puts("\n");
+            //     }
+            // }
 
             return fd;
         }

@@ -9,3 +9,4 @@ cd build
 
 # Initialized cmake
 cmake ..
+make

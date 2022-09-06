@@ -63,17 +63,17 @@ add_executable(
     include/remove-gadget-hid.c
 )
 
-target_compile_definitions(pikmreciever PRIVATE
+target_compile_definitions(${PROJECT_NAME} PRIVATE
     HAS_GADGET_SCHEMES
 
     HOOK_PATH="${HOOK_PATH}"
 )
 
 if(NO_OUTPUT)
-    target_compile_definitions(pikmreciever PRIVATE NO_OUTPUT)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE NO_OUTPUT)
 endif()
 
-target_link_libraries(pikmreciever libusbgx)
+target_link_libraries(${PROJECT_NAME} libusbgx)
 
 install(FILES
     ${CMAKE_CURRENT_LIST_DIR}/hook.sh
@@ -82,7 +82,7 @@ install(FILES
     DESTINATION .
 )
 
-install(TARGETS pikmreciever DESTINATION .)
+install(TARGETS ${PROJECT_NAME} DESTINATION .)
 
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
 set(CPACK_GENERATOR "ZIP" "TGZ")
