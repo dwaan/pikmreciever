@@ -1,3 +1,9 @@
 [submodule "libusbgx"]
 path = libusbgx
 url = https://github.com/linux-usb-gadgets/libusbgx
+[submodule "libhidapi"]
+path = libhidapi
+url = https://github.com/libusb/hidapi
+[submodule "hidapi"]
+	path = hidapi
+	url = https://github.com/libusb/hidapi
