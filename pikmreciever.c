@@ -18,6 +18,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <libhidapi/libhidapi.h>
+
 #define EVIOC_GRAB 1
 #define EVIOC_UNGRAB 0
 
@@ -85,12 +87,15 @@ bool trigger_hook()
     system(buf);
 }
 
-int find_hidraw_device(char *device_type, int16_t vid, int16_t pid)
+int find_hidraw_device()
 {
     int fd;
     int ret;
-    struct hidraw_devinfo hidinfo;
+    int desc_size = 0;
     char path[20];
+    char buf[256];
+    struct hidraw_devinfo hidinfo;
+    struct hidraw_report_descriptor rpt_desc;
 
     for (int x = 0; x < 16; x++)
     {
@@ -101,6 +106,10 @@ int find_hidraw_device(char *device_type, int16_t vid, int16_t pid)
             continue;
         }
 
+        memset(&rpt_desc, 0x0, sizeof(rpt_desc));
+        memset(&hidinfo, 0x0, sizeof(hidinfo));
+        memset(buf, 0x0, sizeof(buf));
+
         /* Get Raw Info */
         ret = ioctl(fd, HIDIOCGRAWINFO, &hidinfo);
         if (ret < 0)
@@ -109,15 +118,43 @@ int find_hidraw_device(char *device_type, int16_t vid, int16_t pid)
         }
         else
         {
-            printf("Found %s at %s:\n", device_type, path);
+            printf("Found a device at %s:\n", path);
             printf("\tRaw Info:\n");
             printf("\t\tbustype: %d (%s)\n", hidinfo.bustype, bus_str(hidinfo.bustype));
-            printf("\t\tvendor: 0x%04hx\n", hidinfo.vendor);
-            printf("\t\tproduct: 0x%04hx\n", hidinfo.product);
+            printf("\t\tvid: 0x%04hx\n", hidinfo.vendor);
+            printf("\t\tpid: 0x%04hx\n", hidinfo.product);
 
             device_vid = hidinfo.vendor;
             device_pid = hidinfo.product;
             sprintf(device_dev, "%s", path);
+
+            /* Get Physical Location */
+            ret = ioctl(fd, HIDIOCGRAWPHYS(256), buf);
+            if (ret >= 0)
+                printf("\t\tRaw Phys: %s\n", buf);
+
+            /* Get Raw Name */
+            ret = ioctl(fd, HIDIOCGRAWNAME(256), buf);
+            if (ret >= 0)
+                printf("\t\tRaw Name: %s\n", buf);
+
+            /* Get Report Descriptor Size */
+            ret = ioctl(fd, HIDIOCGRDESCSIZE, &desc_size);
+            if (ret >= 0)
+            {
+                printf("\t\tReport Descriptor Size: %d\n", desc_size);
+
+                /* Get Report Descriptor */
+                ret = ioctl(fd, HIDIOCGRDESC, &rpt_desc);
+                rpt_desc.size = desc_size;
+                if (ret >= 0)
+                {
+                    printf("\t\tReport Descriptor:\n");
+                    for (int i = 0; i < rpt_desc.size; i++)
+                        printf("0x%02hx ", rpt_desc.value[i]);
+                    puts("\n");
+                }
+            }
 
             return fd;
         }
@@ -201,7 +238,7 @@ int main()
 
     device_buf.report_id = 1;
 
-    device_fd = find_hidraw_device("keyboard", KEYBOARD_VID, KEYBOARD_PID);
+    device_fd = find_hidraw_device();
     if (device_fd == -1)
     {
         printf("No device to forward, bailing out!\n");

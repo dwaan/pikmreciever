@@ -6,4 +6,4 @@ FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
 
 # [Optional] Uncomment this section to install additional OS packages.
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends libconfig-dev build-essential cmake git
+    && apt-get -y install --no-install-recommends git build-essential cmake libconfig-dev libhidapi-dev

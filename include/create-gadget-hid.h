@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <linux/usb/ch9.h>
 #include <usbg/usbg.h>

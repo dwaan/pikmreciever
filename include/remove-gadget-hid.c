@@ -11,9 +11,11 @@ int _remove_gadget(usbg_gadget *g)
 	u = usbg_get_gadget_udc(g);
 
 	/* If gadget is enable we have to disable it first */
-	if (u) {
+	if (u)
+	{
 		usbg_ret = usbg_disable_gadget(g);
-		if (usbg_ret != USBG_SUCCESS) {
+		if (usbg_ret != USBG_SUCCESS)
+		{
 			fprintf(stderr, "Error on USB disable gadget udc\n");
 			fprintf(stderr, "Error: %s : %s\n", usbg_error_name(usbg_ret),
 					usbg_strerror(usbg_ret));
@@ -24,7 +26,8 @@ int _remove_gadget(usbg_gadget *g)
 	/* Remove gadget with USBG_RM_RECURSE flag to remove
 	 * also its configurations, functions and strings */
 	usbg_ret = usbg_rm_gadget(g, USBG_RM_RECURSE);
-	if (usbg_ret != USBG_SUCCESS) {
+	if (usbg_ret != USBG_SUCCESS)
+	{
 		fprintf(stderr, "Error on USB gadget remove\n");
 		fprintf(stderr, "Error: %s : %s\n", usbg_error_name(usbg_ret),
 				usbg_strerror(usbg_ret));
@@ -43,7 +46,8 @@ int remove_gadget(uint16_t device_vid, uint16_t device_pid)
 	struct usbg_gadget_attrs g_attrs;
 
 	usbg_ret = usbg_init("/sys/kernel/config", &s);
-	if (usbg_ret != USBG_SUCCESS) {
+	if (usbg_ret != USBG_SUCCESS)
+	{
 		fprintf(stderr, "Error on USB state init\n");
 		fprintf(stderr, "Error: %s : %s\n", usbg_error_name(usbg_ret),
 				usbg_strerror(usbg_ret));
@@ -51,10 +55,12 @@ int remove_gadget(uint16_t device_vid, uint16_t device_pid)
 	}
 
 	g = usbg_get_first_gadget(s);
-	while (g != NULL) {
+	while (g != NULL)
+	{
 		/* Get current gadget attrs to be compared */
 		usbg_ret = usbg_get_gadget_attrs(g, &g_attrs);
-		if (usbg_ret != USBG_SUCCESS) {
+		if (usbg_ret != USBG_SUCCESS)
+		{
 			fprintf(stderr, "Error on USB get gadget attrs\n");
 			fprintf(stderr, "Error: %s : %s\n", usbg_error_name(usbg_ret),
 					usbg_strerror(usbg_ret));
@@ -62,7 +68,8 @@ int remove_gadget(uint16_t device_vid, uint16_t device_pid)
 		}
 
 		/* Compare attrs with given values and remove if suitable */
-		if (g_attrs.idVendor == device_vid && g_attrs.idProduct == device_pid) {
+		if (g_attrs.idVendor == device_vid && g_attrs.idProduct == device_pid)
+		{
 			usbg_gadget *g_next = usbg_get_next_gadget(g);
 
 			usbg_ret = _remove_gadget(g);
@@ -70,7 +77,9 @@ int remove_gadget(uint16_t device_vid, uint16_t device_pid)
 				goto out2;
 
 			g = g_next;
-		} else {
+		}
+		else
+		{
 			g = usbg_get_next_gadget(g);
 		}
 	}
@@ -78,6 +87,6 @@ int remove_gadget(uint16_t device_vid, uint16_t device_pid)
 out2:
 	usbg_cleanup(s);
 out1:
-    printf("Device %04x:%04x removed", device_vid, device_pid);
+    printf("Device with vid: 0x%04x and pid: 0x%04x removed\n", device_vid, device_pid);
 	return ret;
 }

@@ -4,3 +4,4 @@ rsync -rlptzv --progress --delete --exclude=build/* ./ pi@themoon.local:~/pikmre
 
 echo "Remote building..."
 ssh pi@themoon.local ./build
+ssh pi@themoon.local sudo ./pikmreciever/build/pikmreciever

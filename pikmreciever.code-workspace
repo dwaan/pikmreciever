@@ -4,5 +4,15 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.associations": {
+			"hidraw.h": "c",
+			"input.h": "c",
+			"usbg.h": "c",
+			"remove-gadget-hid.h": "c",
+			"errno.h": "c",
+			"hid.h": "c",
+			"ch9.h": "c"
+		}
+	}
 }
