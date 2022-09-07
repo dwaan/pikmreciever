@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(pikmreciever)
+project(pikmreciever LANGUAGES C CXX)
 
 # for asprintf
 set(CMAKE_C_STANDARD 99)
@@ -53,6 +53,7 @@ else()
 endif()
 
 find_library(libconfig libconfig)
+# find_library(hidapi hidapi)
 
 target_link_libraries(libusbgx INTERFACE config)
 
@@ -74,6 +75,7 @@ if(NO_OUTPUT)
 endif()
 
 target_link_libraries(${PROJECT_NAME} libusbgx)
+target_link_libraries(${PROJECT_NAME} hidapi-libusb)
 
 install(FILES
     ${CMAKE_CURRENT_LIST_DIR}/hook.sh

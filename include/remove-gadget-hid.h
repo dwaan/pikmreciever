@@ -1,3 +1,3 @@
-#include <usbg/usbg.h>
+#include <stdint.h>
 
-int remove_gadget(uint16_t device_vid, uint16_t device_pid);
+int remove_gadget(uint16_t *device_vid, uint16_t *device_pid);

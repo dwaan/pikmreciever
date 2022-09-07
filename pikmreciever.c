@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <poll.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -18,7 +19,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-// Library: apt isntall libhidapi
+// Submodule
+#include <usbg/usbg.h>
+
+// Library: apt install libhidapi
 #include <hidapi/hidapi.h>
 
 #define EVIOC_GRAB 1
@@ -28,13 +32,14 @@ int hid_output;
 volatile int running = 0;
 volatile int grabbed = 0;
 
-int ret;
+int res;
 int device_fd;
 int uinput_device_fd;
 struct hid_buf device_buf;
 
 uint16_t device_vid;
 uint16_t device_pid;
+struct hidraw_report_descriptor report_desc;
 char device_dev[20];
 
 const char *bus_str(int bus)
@@ -83,9 +88,10 @@ bool modprobe_libcomposite()
 
 bool trigger_hook()
 {
+    int ret;
     char buf[4096];
     snprintf(buf, sizeof(buf), "%s %u", HOOK_PATH, grabbed ? 1u : 0u);
-    system(buf);
+    ret = system(buf);
 }
 
 int find_hidraw_device()
@@ -133,62 +139,52 @@ int find_hidraw_device()
             device_pid = hidinfo.product;
             sprintf(device_dev, "%s", path);
 
-            handle = hid_open(device_vid, device_pid, NULL);
-            if (!handle)
+            /* Get Physical Location */
+            res = ioctl(fd, HIDIOCGRAWPHYS(256), buf);
+            if (res >= 0)
+                printf("\t\tRaw Phys: %s\n", buf);
+
+            /* Get Raw Name */
+            res = ioctl(fd, HIDIOCGRAWNAME(256), buf);
+            if (res >= 0)
+                printf("\t\tRaw Name: %s\n", buf);
+
+            /* Get Report Descriptor Size */
+            res = ioctl(fd, HIDIOCGRDESCSIZE, &desc_size);
+            if (res >= 0)
             {
-                printf("unable to open device\n");
-                continue;
+                printf("\t\tReport Descriptor Size: %d\n", desc_size);
+
+                /* Get Report Descriptor */
+                rpt_desc.size = desc_size;
+                res = ioctl(fd, HIDIOCGRDESC, &rpt_desc);
+                if (res >= 0)
+                {
+                    int new_line = 1;
+
+                    printf("\t\tReport Descriptor:\n");
+                    for (int i = 0; i < rpt_desc.size; i++)
+                    {
+                        printf("%d. 0x%02hx ", i, rpt_desc.value[i]);
+
+                        new_line++;
+
+                        if (new_line > 2 && rpt_desc.value[i + 1] == 0x00)
+                            new_line--;
+                        else if (rpt_desc.value[i + 1] == 0xc0)
+                            new_line = 3;
+
+                        if (new_line > 2)
+                        {
+                            printf("\n");
+                            new_line = 1;
+                        }
+                    }
+                    puts("\n");
+                }
+
+                report_desc = rpt_desc;
             }
-
-            // Read the Manufacturer String
-            wstr[0] = 0x0000;
-            res = hid_get_manufacturer_string(handle, wstr, MAX_STR);
-            if (res < 0)
-                printf("Unable to read manufacturer string\n");
-            printf("Manufacturer String: %ls\n", wstr);
-
-            // Read the Product String
-            wstr[0] = 0x0000;
-            res = hid_get_product_string(handle, wstr, MAX_STR);
-            if (res < 0)
-                printf("Unable to read product string\n");
-            printf("Product String: %ls\n", wstr);
-
-            // Read the Serial Number String
-            wstr[0] = 0x0000;
-            res = hid_get_serial_number_string(handle, wstr, MAX_STR);
-            if (res < 0)
-                printf("Unable to read serial number string\n");
-            printf("Serial Number String: (%d) %ls", wstr[0], wstr);
-            printf("\n");
-
-            // /* Get Physical Location */
-            // res = ioctl(fd, HIDIOCGRAWPHYS(256), buf);
-            // if (res >= 0)
-            //     printf("\t\tRaw Phys: %s\n", buf);
-
-            // /* Get Raw Name */
-            // res = ioctl(fd, HIDIOCGRAWNAME(256), buf);
-            // if (res >= 0)
-            //     printf("\t\tRaw Name: %s\n", buf);
-
-            // /* Get Report Descriptor Size */
-            // res = ioctl(fd, HIDIOCGRDESCSIZE, &desc_size);
-            // if (res >= 0)
-            // {
-            //     printf("\t\tReport Descriptor Size: %d\n", desc_size);
-
-            //     /* Get Report Descriptor */
-            //     res = ioctl(fd, HIDIOCGRDESC, &rpt_desc);
-            //     rpt_desc.size = desc_size;
-            //     if (res >= 0)
-            //     {
-            //         printf("\t\tReport Descriptor:\n");
-            //         for (int i = 0; i < rpt_desc.size; i++)
-            //             printf("0x%02hx ", rpt_desc.value[i]);
-            //         puts("\n");
-            //     }
-            // }
 
             return fd;
         }
@@ -257,11 +253,13 @@ void grab_both()
 
 void send_empty_hid_reports_both()
 {
+    ssize_t res;
+
     if (device_fd > -1)
     {
 #ifndef NO_OUTPUT
         memset(device_buf.data, 0, KEYBOARD_HID_REPORT_SIZE);
-        write(hid_output, (unsigned char *)&device_buf, KEYBOARD_HID_REPORT_SIZE + 1);
+        res = write(hid_output, (unsigned char *)&device_buf, KEYBOARD_HID_REPORT_SIZE + 1);
 #endif
     }
 }
@@ -281,11 +279,11 @@ int main()
 
 #ifndef NO_OUTPUT
     // Remove previous device if available
-    ret = remove_gadget(device_vid, device_pid);
+    res = remove_gadget(&device_vid, &device_pid);
 
     // Recreate device using new detail
-    ret = initUSB(device_vid, device_pid);
-    if (ret != USBG_SUCCESS && ret != USBG_ERROR_EXIST)
+    res = initUSB(&device_vid, &device_pid, &report_desc);
+    if (res != USBG_SUCCESS && res != USBG_ERROR_EXIST && res != USBG_ERROR_BUSY)
     {
         return 1;
     }
@@ -329,7 +327,7 @@ int main()
 #ifndef NO_OUTPUT
                 if (grabbed)
                 {
-                    write(hid_output, (unsigned char *)&device_buf, KEYBOARD_HID_REPORT_SIZE + 1);
+                    res = write(hid_output, (unsigned char *)&device_buf, KEYBOARD_HID_REPORT_SIZE + 1);
                     usleep(1000);
                 }
 #endif

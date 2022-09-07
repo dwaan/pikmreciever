@@ -17,7 +17,10 @@
 			"pthread.h": "c",
 			"create-gadget-hid.h": "c",
 			"hidapi.h": "c",
-			"wait.h": "c"
+			"wait.h": "c",
+			"ioctl.h": "c",
+			"signal.h": "c",
+			"stdio.h": "c"
 		}
 	}
 }

@@ -1,9 +1,17 @@
 #include "create-gadget-hid.h"
 
-usbg_state *s;
-usbg_gadget *g;
-usbg_config *c;
-usbg_function *f_hid;
+#include <errno.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <linux/hidraw.h>
+#include <linux/usb/ch9.h>
+#include <usbg/usbg.h>
+#include <usbg/function/hid.h>
+
+usbg_state *gadget_state;
+usbg_gadget *gadget;
+usbg_config *gadget_config;
+usbg_function *gadget_function;
 
 static char report_desc[] = {
     0x05, 0x01,       // Usage Page (Generic Desktop Ctrls)
@@ -70,41 +78,164 @@ static char report_desc[] = {
     0xC0,       // End Collection
 };
 
-int initUSB(uint16_t device_vid, uint16_t device_pid)
+static char report_desc2[] = {
+    // Keyboard
+    0x05, 0x01, // Usage Page (Generic Desktop Ctrls)
+    0x09, 0x06, // 6: Keyboard
+    0xa1, 0x01, // Collection 1 Start
+    0x85, 0x01, //     Break
+    0x05, 0x07, //     Break
+    0x19, 0xe0, //     Break
+    0x29, 0xe7, //     Break
+    0x15, 0x00, //     Break
+    0x25, 0x01, //     Break
+    0x75, 0x01, //     Break
+    0x95, 0x08, //     Break
+    0x81, 0x02, //     Break
+    0x95, 0x05, //     Report Count (5)
+    // ...
+    // ...
+    // ...
+    // ...
+    0x05, 0x08,       //     Usage Page (LEDs)
+    0x19, 0x01,       //     Break
+    0x29, 0x05,       //     Break
+    0x91, 0x02,       //     Break
+    0x95, 0x01,       //     Report Count (1)
+    0x75, 0x03,       //     Report Size (3)
+    0x91, 0x01,       //     Break
+    0x95, 0x06,       //     Break
+    0x75, 0x08,       //     Break
+    0x15, 0x00,       //     Break
+    0x26, 0xa4, 0x00, //     Break
+    0x05, 0x07,       //     Break
+    0x19, 0x00,       //     Break
+    0x2a, 0xa4, 0x00, //     Break
+    0x81, 0x00,       //     Break
+    0xc0,             // Collection 1 End
+
+    // Mouse
+    0x05, 0x01, // Break
+    0x09, 0x02, // 2: Mouse
+    0xa1, 0x01, // Collection 2 Start
+    0x85, 0x02, //    Break
+    0x09, 0x01, //    Break
+    0xa1, 0x00, //    Sub Collection 1 Start
+    0x95, 0x10, //        Break
+    0x75, 0x01, //        Break
+    0x15, 0x00, //        Break
+    0x25, 0x01, //        Break
+    0x05, 0x09, //        Break
+    0x19, 0x01, //        Break
+    0x29, 0x10, //        Break
+    0x81, 0x02, //        Break
+    0x05, 0x01, //        Break
+    0x16, 0x01, //        Break
+    0xf8, 0x26, //        Break
+    0xff, 0x07, //        Break
+    0x75, 0x0c, //        Break
+    0x95, 0x02, //        Break
+    0x09, 0x30, //        Break
+    0x09, 0x31, //        Break
+    0x81, 0x06, //        Break
+    0x15, 0x81, //        Break
+    0x25, 0x7f, //        Break
+    0x75, 0x08, //        Break
+    0x95, 0x01, //        Break
+    0x09, 0x38, //        Break
+    0x81, 0x06, //        Break
+    0x95, 0x01, //        Break
+    0x05, 0x0c, //        Break
+    0x0a, 0x38, //        Break
+    0x02, 0x81, //        Break
+    0x06,       //        Break
+    0xc0,       //    Sub Collection 1 End
+    0xc0,       // Collection 2 End
+
+    // ?
+    0x05, 0x0c, // Break
+    0x09, 0x01, // Break
+    0xa1, 0x01, // Collection 3 Start
+    0x85, 0x03, //    Break
+    0x75, 0x10, //    Break
+    0x95, 0x02, //    Break
+    0x15, 0x01, //    Break
+    0x26, 0x8c, //    Break
+    0x02, 0x19, //    Break
+    0x01, 0x2a, //    Break
+    0x8c, 0x02, //    Break
+    0x81, 0x60, //    Break
+    0xc0,       // Collection 3 End
+
+    // ?
+    0x05, 0x01, // Break
+    0x09, 0x80, // Break
+    0xa1, 0x01, // Collection 4 Start
+    0x85, 0x04, //    Break
+    0x75, 0x02, //    Break
+    0x95, 0x01, //    Break
+    0x15, 0x01, //    Break
+    0x25, 0x03, //    Break
+    0x09, 0x82, //    Break
+    0x09, 0x81, //    Break
+    0x09, 0x83, //    Break
+    0x81, 0x60, //    Break
+    0x75, 0x06, //    Break
+    0x81, 0x03, //    Break
+    0xc0,       // Collection 4 End
+
+    // ?
+    0x06, 0x43,       // Break
+    0xff, 0x0a,       // Break
+    0x02, 0x02,       // Break
+    0xa1, 0x01,       // Collection 5 Start
+    0x85, 0x11,       //    Break
+    0x75, 0x08,       //    Break
+    0x95, 0x13,       //    Break
+    0x15, 0x00,       //    Break
+    0x26, 0xff, 0x00, //    Break
+    0x09, 0x02,       //    Break
+    0x81, 0x00,       //    Break
+    0x09, 0x02,       //    Break
+    0x91, 0x00,       //    Break
+    0xc0,             // Collection 5 End
+};
+
+int initUSB(uint16_t *device_vid, uint16_t *device_pid, struct hidraw_report_descriptor *report_desc)
 {
     int usbg_ret = -EINVAL;
 
-    struct usbg_gadget_attrs g_attrs = {
+    struct usbg_gadget_attrs gadget_attrs = {
         .bcdUSB = 0x0200,
         .bDeviceClass = USB_CLASS_PER_INTERFACE,
         .bDeviceSubClass = 0x00,
         .bDeviceProtocol = 0x00,
         .bMaxPacketSize0 = 64, /* Max allowed ep0 packet size */
-        .idVendor = device_vid,
-        .idProduct = device_pid,
+        .idVendor = *device_vid,
+        .idProduct = *device_pid,
         .bcdDevice = 0x0001, /* Verson of device */
     };
 
-    struct usbg_gadget_strs g_strs = {
+    struct usbg_gadget_strs gadget_strs = {
         .serial = "0123456789",   /* Serial number */
         .manufacturer = "Dwan",   /* Manufacturer */
         .product = "PiKMReciever" /* Product string */
     };
 
-    struct usbg_config_strs c_strs = {
+    struct usbg_config_strs config_strs = {
         .configuration = "1xHID"};
 
-    struct usbg_f_hid_attrs f_attrs = {
+    struct usbg_f_hid_attrs function_attrs = {
         .protocol = 1,
         .report_desc = {
-            .desc = report_desc,
-            .len = sizeof(report_desc),
+            .desc = report_desc2,
+            .len = sizeof(report_desc2),
         },
         .report_length = 16,
         .subclass = 0,
     };
 
-    usbg_ret = usbg_init("/sys/kernel/config", &s);
+    usbg_ret = usbg_init("/sys/kernel/config", &gadget_state);
     if (usbg_ret != USBG_SUCCESS)
     {
         fprintf(stderr, "Error on usbg init\n");
@@ -113,7 +244,7 @@ int initUSB(uint16_t device_vid, uint16_t device_pid)
         goto out1;
     }
 
-    usbg_ret = usbg_create_gadget(s, "g1", &g_attrs, &g_strs, &g);
+    usbg_ret = usbg_create_gadget(gadget_state, "TheKeyboardMouse", &gadget_attrs, &gadget_strs, &gadget);
     if (usbg_ret != USBG_SUCCESS)
     {
         fprintf(stderr, "Error creating gadget\n");
@@ -122,7 +253,7 @@ int initUSB(uint16_t device_vid, uint16_t device_pid)
         goto out2;
     }
 
-    usbg_ret = usbg_create_function(g, USBG_F_HID, "usb0", &f_attrs, &f_hid);
+    usbg_ret = usbg_create_function(gadget, USBG_F_HID, "usb0", &function_attrs, &gadget_function);
     if (usbg_ret != USBG_SUCCESS)
     {
         fprintf(stderr, "Error creating function: USBG_F_HID\n");
@@ -131,7 +262,7 @@ int initUSB(uint16_t device_vid, uint16_t device_pid)
         goto out2;
     }
 
-    usbg_ret = usbg_create_config(g, 1, "config", NULL, &c_strs, &c);
+    usbg_ret = usbg_create_config(gadget, 1, "config", NULL, &config_strs, &gadget_config);
     if (usbg_ret != USBG_SUCCESS)
     {
         fprintf(stderr, "Error creating config\n");
@@ -140,7 +271,7 @@ int initUSB(uint16_t device_vid, uint16_t device_pid)
         goto out2;
     }
 
-    usbg_ret = usbg_add_config_function(c, "keyboard", f_hid);
+    usbg_ret = usbg_add_config_function(gadget_config, "keyboard", gadget_function);
     if (usbg_ret != USBG_SUCCESS)
     {
         fprintf(stderr, "Error adding function: keyboard\n");
@@ -149,7 +280,7 @@ int initUSB(uint16_t device_vid, uint16_t device_pid)
         goto out2;
     }
 
-    usbg_ret = usbg_enable_gadget(g, DEFAULT_UDC);
+    usbg_ret = usbg_enable_gadget(gadget, DEFAULT_UDC);
     if (usbg_ret != USBG_SUCCESS)
     {
         fprintf(stderr, "Error enabling gadget\n");
@@ -159,24 +290,24 @@ int initUSB(uint16_t device_vid, uint16_t device_pid)
     }
 
 out2:
-    usbg_cleanup(s);
-    s = NULL;
+    usbg_cleanup(gadget_state);
+    gadget_state = NULL;
 
 out1:
-    printf("Device with vid: 0x%04x and pid: 0x%04x created\n", device_vid, device_pid);
+    printf("Device with vid: 0x%04x and pid: 0x%04x created\n", *device_vid, *device_pid);
     return usbg_ret;
 }
 
 int cleanupUSB()
 {
-    if (g)
+    if (gadget)
     {
-        usbg_disable_gadget(g);
-        usbg_rm_gadget(g, USBG_RM_RECURSE);
+        usbg_disable_gadget(gadget);
+        usbg_rm_gadget(gadget, USBG_RM_RECURSE);
     }
-    if (s)
+    if (gadget_state)
     {
-        usbg_cleanup(s);
+        usbg_cleanup(gadget_state);
     }
     return 0;
 }
